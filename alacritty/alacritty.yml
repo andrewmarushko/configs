@@ -909,3 +909,6 @@ font:
 
   # Highlight window damage information.
   #highlight_damage: false
+  key_bindings:
+    - { key: J, mods: Control, chars: "\x02\x54" }
+
