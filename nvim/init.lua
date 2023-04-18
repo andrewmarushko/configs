@@ -35,7 +35,6 @@ I hope you enjoy your Neovim journey,
 
 P.S. You can delete this when you're done too. It's your config now :)
 --]]
-
 -- Set <space> as the leader key
 -- See `:help mapleader`
 --  NOTE: Must happen before plugins are required (otherwise wrong leader will be used)
@@ -75,30 +74,148 @@ require('lazy').setup({
 
   -- NOTE: This is where your plugins related to LSP can be installed.
   --  The configuration is done below. Search for lspconfig to find it below.
-  { -- LSP Configuration & Plugins
+  {
+    -- LSP Configuration & Plugins
     'neovim/nvim-lspconfig',
     dependencies = {
       -- Automatically install LSPs to stdpath for neovim
       { 'williamboman/mason.nvim', config = true },
       'williamboman/mason-lspconfig.nvim',
-
+      "jose-elias-alvarez/typescript.nvim",
       -- Useful status updates for LSP
       -- NOTE: `opts = {}` is the same as calling `require('fidget').setup({})`
-      { 'j-hui/fidget.nvim', opts = {} },
-
+      { 'j-hui/fidget.nvim',       opts = {} },
       -- Additional lua configuration, makes nvim stuff amazing!
       'folke/neodev.nvim',
+      init = function()
+        require("lazyvim.util").on_attach(function(_, buffer)
+          -- stylua: ignore
+          vim.keymap.set("n", "<leader>co", "TypescriptOrganizeImports", { buffer = buffer, desc = "Organize Imports" })
+          vim.keymap.set("n", "<leader>cR", "TypescriptRenameFile", { desc = "Rename File", buffer = buffer })
+        end)
+      end,
+    }
+  },
+
+  {
+    -- Autocompletion
+    'hrsh7th/nvim-cmp',
+    dependencies = { 'hrsh7th/cmp-nvim-lsp', 'L3MON4D3/LuaSnip', 'saadparwaiz1/cmp_luasnip',
+      { "roobert/tailwindcss-colorizer-cmp.nvim", config = true },
+      { "zbirenbaum/copilot-cmp" }
+    },
+    opts = function(_, opts)
+      opts.formatting = {
+        fields = { "kind", "abbr", "menu" },
+        format = function(_, item)
+          local icons = {
+            diagnostics = {
+              Error = " ",
+              Warn = " ",
+              Hint = " ",
+              Info = " ",
+            },
+            git = {
+              added = "",
+              changed = "",
+              deleted = "",
+            },
+          }
+          if icons[item.kind] then
+            item.kind = icons[item.kind]
+          end
+          return item
+        end,
+      }
+      vim.api.nvim_set_hl(0, "CmpItemKindCopilot", { fg = "#6CC644" })
+      vim.api.nvim_set_hl(0, "CmpItemAbbrMatch", { fg = "NONE", bg = "#000000" })
+      vim.cmd([[highlight! link CmpItemAbbrMatchFuzzy CmpItemAbbrMatch]])
+      vim.cmd([[highlight! CmpItemAbbrDeprecated guibg=NONE gui=strikethrough guifg=#808080]])
+      vim.cmd([[highlight! CmpItemAbbrMatch guibg=NONE guifg=#569CD6]])
+      vim.cmd([[highlight! link CmpItemAbbrMatchFuzzy CmpItemAbbrMatch]])
+      vim.cmd([[highlight! CmpItemKindVariable guibg=NONE guifg=#9CDCFE]])
+      vim.cmd([[highlight! link CmpItemKindInterface CmpItemKindVariable]])
+      vim.cmd([[highlight! link CmpItemKindText CmpItemKindVariable]])
+      vim.cmd([[highlight! CmpItemKindFunction guibg=NONE guifg=#C586C0]])
+      vim.cmd([[highlight! link CmpItemKindMethod CmpItemKindFunction]])
+      vim.cmd([[highlight! CmpItemKindKeyword guibg=NONE guifg=#D4D4D4]])
+      vim.cmd([[highlight! link CmpItemKindProperty CmpItemKindKeyword]])
+      vim.cmd([[highlight! link CmpItemKindUnit CmpItemKindKeyword]])
+      -- original LazyVim kind icon formatter
+      local format_kinds = opts.formatting.format
+      opts.formatting.format = function(entry, item)
+        format_kinds(entry, item) -- add icons
+        return require("tailwindcss-colorizer-cmp").formatter(entry, item)
+      end
+    end,
+  },
+
+  {
+    "akinsho/bufferline.nvim",
+    opts = {
+      options = {
+        offsets = { text_align = "left" },
+        separator_style = { "", "" },
+        indicator = { style = "none" },
+        show_buffer_close_icons = false,
+        show_close_icon = false,
+        show_tab_indicators = false,
+        always_show_bufferline = true,
+      },
     },
   },
 
-  { -- Autocompletion
-    'hrsh7th/nvim-cmp',
-    dependencies = { 'hrsh7th/cmp-nvim-lsp', 'L3MON4D3/LuaSnip', 'saadparwaiz1/cmp_luasnip' },
+  {
+    "weilbith/nvim-code-action-menu",
+    cmd = "CodeActionMenu",
   },
+
+  {
+    "NvChad/nvim-colorizer.lua",
+    config = function()
+      require("colorizer").setup({
+        user_default_options = {
+          tailwind = true,
+        },
+      })
+    end,
+  },
+  { "rhysd/committia.vim" },
+  {
+    "sindrets/diffview.nvim",
+    lazy = false,
+    dependencies = "nvim-lua/plenary.nvim",
+    keys = {
+      { "<leader>do", "<cmd>DiffviewOpen<cr>",  desc = "NeoTree" },
+      { "<leader>dx", "<cmd>DiffviewClose<cr>", desc = "NeoTree" },
+    },
+    opts = {
+      view = {
+        -- Configure the layout and behavior of different types of views.
+        -- Available layouts:
+        --  'diff1_plain'
+        --    |'diff2_horizontal'
+        --    |'diff2_vertical'
+        --    |'diff3_horizontal'
+        --    |'diff3_vertical'
+        --    |'diff3_mixed'
+        --    |'diff4_mixed'
+        -- For more info, see ':h diffview-config-view.x.layout'.
+        use_icons = true,
+        default = {
+          -- Config for changed files, and staged files in diff views.
+          layout = "diff2_horizontal",
+          winbar_info = false, -- See ':h diffview-config-view.x.winbar_info'
+        },
+      },
+    },
+  },
+
 
   -- Useful plugin to show you pending keybinds.
   { 'folke/which-key.nvim', opts = {} },
-  { -- Adds git releated signs to the gutter, as well as utilities for managing changes
+  {
+    -- Adds git releated signs to the gutter, as well as utilities for managing changes
     'lewis6991/gitsigns.nvim',
     opts = {
       -- See `:help gitsigns.txt`
@@ -112,8 +229,31 @@ require('lazy').setup({
     },
   },
 
-  { "catppuccin/nvim", name = "catppuccin", config = function()
-    vim.cmd.colorscheme "catppuccin" end
+  {
+    "catppuccin/nvim",
+    config = function()
+      vim.cmd.colorscheme "catppuccin"
+    end,
+    name = "catppuccin",
+    event = "VeryLazy",
+    opts = {
+      flavour = "mocha", -- latte, frappe, macchiato, or mocha
+      transparent_background = true,
+      color_overrides = {
+        all = {
+          surface0 = "#444444",
+          surface1 = "#666666",
+          surface2 = "#a3a7bc",
+          surface3 = "#a3a7bc",
+        },
+      },
+      integrations = {
+        cmp = true,
+        gitsigns = true,
+        harpoon = true,
+        telescope = true,
+      },
+    },
   },
 
   -- { -- Theme inspired by Atom
@@ -124,7 +264,8 @@ require('lazy').setup({
   --   end,
   -- },
 
-  { -- Set lualine as statusline
+  {
+    -- Set lualine as statusline
     'nvim-lualine/lualine.nvim',
     -- See `:help lualine.txt`
     opts = {
@@ -137,7 +278,8 @@ require('lazy').setup({
     },
   },
 
-  { -- Add indentation guides even on blank lines
+  {
+    -- Add indentation guides even on blank lines
     'lukas-reineke/indent-blankline.nvim',
     -- Enable `lukas-reineke/indent-blankline.nvim`
     -- See `:help indent_blankline.txt`
@@ -148,7 +290,7 @@ require('lazy').setup({
   },
 
   -- "gc" to comment visual regions/lines
-  { 'numToStr/Comment.nvim', opts = {} },
+  { 'numToStr/Comment.nvim',         opts = {} },
 
   -- Fuzzy Finder (files, lsp, etc)
   { 'nvim-telescope/telescope.nvim', version = '*', dependencies = { 'nvim-lua/plenary.nvim' } },
@@ -168,7 +310,8 @@ require('lazy').setup({
     end,
   },
 
-  { -- Highlight, edit, and navigate code
+  {
+    -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
     dependencies = {
       'nvim-treesitter/nvim-treesitter-textobjects',
@@ -416,8 +559,7 @@ local servers = {
   -- gopls = {},
   -- pyright = {},
   -- rust_analyzer = {},
-  -- tsserver = {},
-
+  tsserver = {},
   lua_ls = {
     Lua = {
       workspace = { checkThirdParty = false },
@@ -453,59 +595,14 @@ mason_lspconfig.setup_handlers {
 local transparent = require("transparent")
 
 transparent.setup({
-
-   groups = { -- table: default groups
+  groups = { -- table: default groups
     'Normal', 'NormalNC', 'Comment', 'Constant', 'Special', 'Identifier',
     'Statement', 'PreProc', 'Type', 'Underlined', 'Todo', 'String', 'Function',
     'Conditional', 'Repeat', 'Operator', 'Structure', 'LineNr', 'NonText',
     'SignColumn', 'CursorLineNr', 'EndOfBuffer',
   },
-  extra_groups = {}, -- table: additional groups that should be cleared
+  extra_groups = {},   -- table: additional groups that should be cleared
   exclude_groups = {}, -- table: groups you don't want to clear
-
-})
-
-require("catppuccin").setup({
-    flavour = "latte", -- latte, frappe, macchiato, mocha
-    background = { -- :h background
-        light = "latte",
-        dark = "mocha",
-    },
-    transparent_background = false,
-    show_end_of_buffer = false, -- show the '~' characters after the end of buffers
-    term_colors = false,
-    dim_inactive = {
-        enabled = false,
-        shade = "dark",
-        percentage = 0.15,
-    },
-    no_italic = false, -- Force no italic
-    no_bold = false, -- Force no bold
-    styles = {
-        comments = { "italic" },
-        conditionals = { "italic" },
-        loops = {},
-        functions = {},
-        keywords = {},
-        strings = {},
-        variables = {},
-        numbers = {},
-        booleans = {},
-        properties = {},
-        types = {},
-        operators = {},
-    },
-    color_overrides = {},
-    custom_highlights = {},
-    integrations = {
-        cmp = true,
-        gitsigns = true,
-        nvimtree = true,
-        telescope = true,
-        notify = false,
-        mini = false,
-        -- For more plugins integrations please scroll down (https://github.com/catppuccin/nvim#integrations)
-    },
 })
 
 -- nvim-cmp setup
